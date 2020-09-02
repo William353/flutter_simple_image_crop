@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -120,25 +120,26 @@ class _SimpleCropRouteState extends State<SimpleCropRoute> {
   Widget build(BuildContext context) {
     final Map args = ModalRoute.of(context).settings.arguments;
     return Scaffold(
-        appBar: AppBar(
-          elevation: 0,
-          title: Text(
-            'Zoom and Crop',
-            style: TextStyle(color: Colors.black),
-          ),
-          backgroundColor: Colors.white,
-          leading: new IconButton(
-            icon:
-                new Icon(Icons.navigate_before, color: Colors.black, size: 40),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ),
+//        appBar: AppBar(
+//          elevation: 0,
+//          title: Text(
+//            'Zoom and Crop',
+//            style: TextStyle(color: Colors.black),
+//          ),
+//          backgroundColor: Colors.white,
+//          leading: new IconButton(
+//            icon:
+//                new Icon(Icons.navigate_before, color: Colors.black, size: 40),
+//            onPressed: () => Navigator.of(context).pop(),
+//          ),
+//        ),
         body: Center(
           child: ImgCrop(
             key: cropKey,
-            // chipRadius: 100,
-            // chipShape: 'rect',
+            chipShape: SHAPE_RECT,
+            chipRadius: MediaQuery.of(context).size.width / 2 - 10,
             maximumScale: 3,
+            aspectRatio: 16 / 9,
             image: FileImage(args['image']),
           ),
         ),

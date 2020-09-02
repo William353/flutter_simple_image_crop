@@ -1,8 +1,11 @@
 part of image_crop;
 
-const _kCropOverlayActiveOpacity = 0.3;
-const _kCropOverlayInactiveOpacity = 0.7;
-const _kCropHandleSize = 10.0;
+//const _kCropOverlayActiveOpacity = 0.45;
+//const _kCropOverlayInactiveOpacity = 0.45;
+const _kCropHandleSize = 0.0;
+
+const String SHAPE_CIRCLE = "circle";
+const String SHAPE_RECT = "rect";
 
 enum _CropAction { none, moving, scaling }
 
@@ -12,13 +15,20 @@ class ImgCrop extends StatefulWidget {
   final ImageErrorListener onImageError;
   final double chipRadius; // 裁剪半径
   final String chipShape; // 裁剪区域形状
+  final double aspectRatio; //裁剪区域宽高比
+  final kCropOverlayActiveOpacity;
+  final kCropOverlayInactiveOpacity;
+
   const ImgCrop(
       {Key key,
       this.image,
       this.maximumScale: 2.0,
       this.onImageError,
       this.chipRadius = 150,
-      this.chipShape = 'circle'})
+      this.aspectRatio = 1.0,
+      this.kCropOverlayActiveOpacity = 0.3,
+      this.kCropOverlayInactiveOpacity = 0.6,
+      this.chipShape = SHAPE_CIRCLE})
       : assert(image != null),
         assert(maximumScale != null),
         super(key: key);
@@ -29,7 +39,10 @@ class ImgCrop extends StatefulWidget {
       this.maximumScale: 2.0,
       this.onImageError,
       this.chipRadius = 150,
-      this.chipShape = 'circle'})
+      this.aspectRatio = 1.0,
+      this.kCropOverlayActiveOpacity = 0.3,
+      this.kCropOverlayInactiveOpacity = 0.6,
+      this.chipShape = SHAPE_CIRCLE})
       : image = FileImage(file, scale: scale),
         assert(maximumScale != null),
         super(key: key);
@@ -40,9 +53,12 @@ class ImgCrop extends StatefulWidget {
     AssetBundle bundle,
     String package,
     this.chipRadius = 150,
+    this.aspectRatio = 1.0,
     this.maximumScale: 2.0,
     this.onImageError,
-    this.chipShape = 'circle',
+    this.kCropOverlayActiveOpacity = 0.3,
+    this.kCropOverlayInactiveOpacity = 0.6,
+    this.chipShape = SHAPE_CIRCLE,
   })  : image = AssetImage(assetName, bundle: bundle, package: package),
         assert(maximumScale != null),
         super(key: key);
@@ -62,7 +78,7 @@ class ImgCropState extends State<ImgCrop> with TickerProviderStateMixin, Drag {
   ImageStream _imageStream;
   ui.Image _image;
   double _scale;
-  double _ratio;
+  double _ratio; //图片缩放比例
   Rect _view;
   Rect _area;
   Offset _lastFocalPoint;
@@ -173,7 +189,9 @@ class ImgCropState extends State<ImgCrop> with TickerProviderStateMixin, Drag {
               area: _area,
               scale: _scale,
               active: _activeController.value,
-              chipShape: widget.chipShape),
+              chipShape: widget.chipShape,
+              kCropOverlayActiveOpacity: widget.kCropOverlayActiveOpacity,
+              kCropOverlayInactiveOpacity: widget.kCropOverlayInactiveOpacity),
         ),
       ),
     );
@@ -201,6 +219,7 @@ class ImgCropState extends State<ImgCrop> with TickerProviderStateMixin, Drag {
     });
   }
 
+  //裁剪区域
   Rect _calculateDefaultArea({
     int imageWidth,
     int imageHeight,
@@ -213,12 +232,14 @@ class ImgCropState extends State<ImgCrop> with TickerProviderStateMixin, Drag {
 
     final _deviceWidth =
         MediaQuery.of(context).size.width - (2 * _kCropHandleSize);
-    final _areaOffset = (_deviceWidth - (widget.chipRadius * 2));
-    final _areaOffsetRadio = _areaOffset / _deviceWidth;
-    final width = 1.0 - _areaOffsetRadio;
-
-    final height =
-        (imageWidth * viewWidth * width) / (imageHeight * viewHeight * 1.0);
+    final _areaOffset =
+        (_deviceWidth - (widget.chipRadius * 2)); //水平方向出去裁剪框后，剩下的宽度
+    final _areaOffsetRadio = _areaOffset / _deviceWidth; //剩下宽度的白分比
+    final width = 1.0 - _areaOffsetRadio; //裁剪宽度与屏幕宽度的比例
+    final height = (imageWidth * viewWidth * width / (widget.aspectRatio)) /
+        (imageHeight * viewHeight * 1.0);
+//    print(
+//        "imageWidth:$imageWidth   imageHeight:$imageHeight   viewWidth:$viewWidth   viewHeight:$viewHeight     height:$height");
     return Rect.fromLTWH((1.0 - width) / 2, (1.0 - height) / 2, width, height);
   }
 
@@ -366,6 +387,8 @@ class _CropPainter extends CustomPainter {
   final double scale;
   final double active;
   final String chipShape;
+  final kCropOverlayActiveOpacity;
+  final kCropOverlayInactiveOpacity;
 
   _CropPainter(
       {this.image,
@@ -374,7 +397,9 @@ class _CropPainter extends CustomPainter {
       this.area,
       this.scale,
       this.active,
-      this.chipShape});
+      this.chipShape,
+      this.kCropOverlayActiveOpacity,
+      this.kCropOverlayInactiveOpacity});
 
   @override
   bool shouldRepaint(_CropPainter oldDelegate) {
@@ -395,6 +420,7 @@ class _CropPainter extends CustomPainter {
     );
   }
 
+  //裁剪框
   Rect currentBoundaries(size) {
     var rect = currentRact(size);
     return Rect.fromLTWH(
@@ -438,13 +464,13 @@ class _CropPainter extends CustomPainter {
         0x0,
         0x0,
         0x0,
-        _kCropOverlayActiveOpacity * active +
-            _kCropOverlayInactiveOpacity * (1.0 - active));
+        kCropOverlayActiveOpacity * active +
+            kCropOverlayInactiveOpacity * (1.0 - active));
     final boundaries = currentBoundaries(size);
     final _path1 = Path()
       ..addRect(Rect.fromLTRB(0.0, 0.0, rect.width, rect.height));
     Path _path2;
-    if (chipShape == 'rect') {
+    if (chipShape == SHAPE_RECT) {
       _path2 = Path()..addRect(boundaries);
     } else {
       _path2 = Path()
@@ -463,7 +489,7 @@ class _CropPainter extends CustomPainter {
       ..color = Colors.white
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
-    if (chipShape == 'rect') {
+    if (chipShape == SHAPE_RECT) {
       canvas.drawRect(
           Rect.fromLTRB(boundaries.left - 1, boundaries.top - 1,
               boundaries.right + 1, boundaries.bottom + 1),
